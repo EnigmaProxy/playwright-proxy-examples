@@ -26,14 +26,6 @@ Examples cover:
 -   HTTP proxies
 -   HTTPS proxies
 -   SOCKS5 proxies
--   Proxy authentication
--   Rotating proxies
--   Sticky sessions
--   Geo-targeting
--   Multiple browser instances
--   Multiple browser contexts
--   Retry logic
--   Docker
 -   Best practices
 
 ------------------------------------------------------------------------
@@ -81,9 +73,6 @@ playwright install
 ``` text
 nodejs/
 python/
-docker/
-docs/
-images/
 ```
 
 Each folder focuses on a different part of proxy integration.
@@ -99,7 +88,7 @@ const { chromium } = require("playwright");
 
 const browser = await chromium.launch({
   proxy: {
-    server: "http://HOST:PORT",
+    server: "http://resi.enigmaproxy.net:12321",
     username: "USERNAME",
     password: "PASSWORD"
   }
@@ -111,7 +100,63 @@ Python
 ``` python
 browser = p.chromium.launch(
     proxy={
-        "server":"http://HOST:PORT",
+        "server":"http://resi.enigmaproxy.net:12321",
+        "username":"USERNAME",
+        "password":"PASSWORD"
+    }
+)
+```
+
+# HTTPS Proxy
+
+Node.js
+
+``` javascript
+const { chromium } = require("playwright");
+
+const browser = await chromium.launch({
+  proxy: {
+    server: "https://resi.enigmaproxy.net:12321",
+    username: "USERNAME",
+    password: "PASSWORD"
+  }
+});
+```
+
+Python
+
+``` python
+browser = p.chromium.launch(
+    proxy={
+        "server":"https://resi.enigmaproxy.net:12321",
+        "username":"USERNAME",
+        "password":"PASSWORD"
+    }
+)
+```
+
+# SOCKS5 Proxy
+
+Node.js
+
+``` javascript
+const { chromium } = require("playwright");
+
+const browser = await chromium.launch({
+  proxy: {
+    server: "socks5://resi.enigmaproxy.net:32325",
+    username: "USERNAME",
+    password: "PASSWORD"
+  }
+});
+```
+
+Python
+
+``` python
+browser = p.chromium.launch(
+    proxy={
+        "server":"socks5://resi.enigmaproxy.net:32325",
         "username":"USERNAME",
         "password":"PASSWORD"
     }
