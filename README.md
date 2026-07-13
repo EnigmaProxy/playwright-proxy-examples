@@ -336,6 +336,7 @@ The examples in this repository work with any compatible proxy provider.
 If you're looking for production-ready infrastructure, EnigmaProxy
 offers:
 
+-   Budget Residential Proxies
 -   Residential Proxies
 -   Enterprise Residential Proxies
 -   Unlimited ISP
