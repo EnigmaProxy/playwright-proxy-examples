@@ -34,20 +34,23 @@ Examples cover:
 
 1.  Installation
 2.  Repository Structure
-3.  Basic Proxy
-4.  HTTP vs HTTPS vs SOCKS5
-5.  Authentication
-6.  Rotating Proxies
-7.  Sticky Sessions
-8.  Geo Targeting
-9.  Multiple Browsers
-10. Multiple Contexts
-11. Retry Logic
-12. Performance
-13. Troubleshooting
-14. Best Practices
-15. FAQ
-16. Production Proxies
+3.  Running the Examples
+4.  Basic Proxy
+5.  HTTP vs HTTPS vs SOCKS5
+6.  Authentication
+7.  Rotating Proxies
+8.  Proxy Pool
+9.  Sticky Sessions
+10. Geo Targeting
+11. Sticky Geo Targeting
+12. Multiple Browser Instances
+13. Retry Logic
+14. Screenshots
+15. Performance
+16. Troubleshooting
+17. Best Practices
+18. FAQ
+19. Production Proxies
 
 ------------------------------------------------------------------------
 
@@ -72,10 +75,81 @@ playwright install
 
 ``` text
 nodejs/
+  basic-http.js            Plain HTTP proxy
+  https-proxy.js           HTTPS proxy
+  socks5-proxy.js          SOCKS5 proxy
+  rotating.js              Random proxy selected from a pool per run
+  proxy-pool.js            Named proxy pool launched in parallel
+  sticky-session.js        Sticky session via a generated session ID
+  geo-targeting.js         Country / state / city targeting
+  sticky-geo-targeting.js  Geo targeting combined with a sticky session
+  multiple-browsers.js     Multiple browsers, each with its own proxy
+  retry.js                 Retry logic with a max attempt count
+  screenshot.js            Proxied page screenshot
+
 python/
+  basic_http.py
+  https_proxy.py
+  socks5_proxy.py
+  rotating.py
+  proxy_pool.py
+  sticky_session.py
+  geo_targeting.py
+  sticky_geo_targeting.py
+  multiple_browsers.py
+  retry.py
+  screenshot.py
 ```
 
-Each folder focuses on a different part of proxy integration.
+Each Node.js example has a matching Python example that implements the
+same behavior.
+
+------------------------------------------------------------------------
+
+# Running the Examples
+
+## Node.js
+
+Each example is registered as an npm script:
+
+``` bash
+npm run basic-http
+npm run https-proxy
+npm run socks5-proxy
+npm run rotating
+npm run proxy-pool
+npm run sticky-session
+npm run geo-targeting
+npm run sticky-geo-targeting
+npm run multiple-browsers
+npm run retry
+npm run screenshot
+```
+
+Or run a file directly:
+
+``` bash
+node nodejs/basic-http.js
+```
+
+## Python
+
+``` bash
+python python/basic_http.py
+python python/https_proxy.py
+python python/socks5_proxy.py
+python python/rotating.py
+python python/proxy_pool.py
+python python/sticky_session.py
+python python/geo_targeting.py
+python python/sticky_geo_targeting.py
+python python/multiple_browsers.py
+python python/retry.py
+python python/screenshot.py
+```
+
+Before running any example, replace `USERNAME` and `PASSWORD` with your
+EnigmaProxy credentials.
 
 ------------------------------------------------------------------------
 
@@ -214,6 +288,19 @@ export PROXY_USER=...
 export PROXY_PASS=...
 ```
 
+EnigmaProxy also encodes routing options directly into the username
+using suffixes, so rotation, sticky sessions, and geo-targeting all
+reuse the same `username` / `password` fields:
+
+``` text
+USERNAME                                              Random exit IP
+USERNAME_country-us                                   Country targeting
+USERNAME_country-us_state-california                  State targeting
+USERNAME_country-us_state-california_city-losangeles  City targeting
+USERNAME_session-<id>                                 Sticky session
+USERNAME_country-us_session-<id>                      Sticky + geo
+```
+
 ------------------------------------------------------------------------
 
 # Rotating Proxies
@@ -233,6 +320,68 @@ Benefits:
 -   Reduced dependency on a single endpoint
 -   Flexible request routing
 
+Node.js (`nodejs/rotating.js`)
+
+``` javascript
+const proxies = [
+  { server: "http://resi.enigmaproxy.net:12321", username: "USERNAME", password: "PASSWORD" },
+  { server: "http://resi.enigmaproxy.net:12321", username: "USERNAME_country-us", password: "PASSWORD" },
+  { server: "http://resi.enigmaproxy.net:12321", username: "USERNAME_country-gb", password: "PASSWORD" },
+  { server: "http://resi.enigmaproxy.net:12321", username: "USERNAME_country-de", password: "PASSWORD" }
+];
+
+const proxy = proxies[Math.floor(Math.random() * proxies.length)];
+
+const browser = await chromium.launch({ headless: true, proxy });
+```
+
+Python (`python/rotating.py`)
+
+``` python
+import random
+
+proxies = [
+    {"server": "http://resi.enigmaproxy.net:12321", "username": "USERNAME", "password": "PASSWORD"},
+    {"server": "http://resi.enigmaproxy.net:12321", "username": "USERNAME_country-us", "password": "PASSWORD"},
+    {"server": "http://resi.enigmaproxy.net:12321", "username": "USERNAME_country-gb", "password": "PASSWORD"},
+    {"server": "http://resi.enigmaproxy.net:12321", "username": "USERNAME_country-de", "password": "PASSWORD"}
+]
+
+proxy = random.choice(proxies)
+
+browser = p.chromium.launch(headless=True, proxy=proxy)
+```
+
+------------------------------------------------------------------------
+
+# Proxy Pool
+
+A proxy pool assigns a distinct, named proxy to each worker instead of
+picking one at random. Useful when you want every worker to have a
+predictable, isolated exit IP.
+
+Node.js (`nodejs/proxy-pool.js`)
+
+``` javascript
+const proxies = [
+  { name: "Random", server: "http://resi.enigmaproxy.net:12321", username: "USERNAME", password: "PASSWORD" },
+  { name: "United States", server: "http://resi.enigmaproxy.net:12321", username: "USERNAME_country-us", password: "PASSWORD" },
+  { name: "Germany", server: "http://resi.enigmaproxy.net:12321", username: "USERNAME_country-de", password: "PASSWORD" }
+];
+
+async function launch(proxy) {
+  const browser = await chromium.launch({ headless: true, proxy });
+  // ... use the browser
+  await browser.close();
+}
+
+await Promise.all(proxies.map(launch));
+```
+
+Python (`python/proxy_pool.py`) uses `ThreadPoolExecutor` to launch one
+browser per proxy concurrently, since Playwright's sync API is
+blocking.
+
 ------------------------------------------------------------------------
 
 # Sticky Sessions
@@ -245,6 +394,42 @@ Ideal for:
 -   Shopping carts
 -   Multi-step workflows
 -   Long browser sessions
+
+A random session ID is generated per run and appended to the username
+as `_session-<id>`. Reusing the same ID on a later launch keeps the
+same exit IP.
+
+Node.js (`nodejs/sticky-session.js`)
+
+``` javascript
+const crypto = require("crypto");
+const session = crypto.randomBytes(4).toString("hex");
+
+const browser = await chromium.launch({
+  headless: true,
+  proxy: {
+    server: "http://resi.enigmaproxy.net:12321",
+    username: `USERNAME_session-${session}`,
+    password: "PASSWORD"
+  }
+});
+```
+
+Python (`python/sticky_session.py`)
+
+``` python
+import secrets
+session = secrets.token_hex(4)
+
+browser = p.chromium.launch(
+    headless=True,
+    proxy={
+        "server": "http://resi.enigmaproxy.net:12321",
+        "username": f"USERNAME_session-{session}",
+        "password": "PASSWORD"
+    }
+)
+```
 
 ------------------------------------------------------------------------
 
@@ -260,15 +445,68 @@ Typical examples include:
 -   Streaming services
 -   Local business listings
 
-Playwright can launch browsers using country-specific proxy endpoints
-where available.
+Playwright launches the browser normally; the location is selected by
+appending `country` / `state` / `city` suffixes to the proxy username.
+
+Node.js (`nodejs/geo-targeting.js`)
+
+``` javascript
+const examples = {
+  random: "USERNAME",
+  country: "USERNAME_country-us",
+  state: "USERNAME_country-us_state-california",
+  city: "USERNAME_country-us_state-california_city-losangeles",
+  international: "USERNAME_country-sa_state-alhududashshamaliyah_city-arar"
+};
+
+const browser = await chromium.launch({
+  headless: true,
+  proxy: {
+    server: "http://resi.enigmaproxy.net:12321",
+    username: examples.country,
+    password: "PASSWORD"
+  }
+});
+```
+
+Python (`python/geo_targeting.py`) mirrors the same `examples` dict and
+username suffixes.
+
+------------------------------------------------------------------------
+
+# Sticky Geo Targeting
+
+Combines a fixed location with a sticky session by chaining both
+suffixes onto the username: `USERNAME_country-us_session-<id>`. Useful
+for multi-step flows (login, checkout, pagination) that must stay in
+the same country and keep the same exit IP throughout.
+
+Node.js (`nodejs/sticky-geo-targeting.js`)
+
+``` javascript
+const session = crypto.randomBytes(4).toString("hex");
+
+const username = `USERNAME_country-us_session-${session}`;
+
+const browser = await chromium.launch({
+  headless: true,
+  proxy: {
+    server: "http://resi.enigmaproxy.net:12321",
+    username,
+    password: "PASSWORD"
+  }
+});
+```
+
+Python (`python/sticky_geo_targeting.py`) generates the session ID with
+`secrets.token_hex(4)` and builds the same suffixed username.
 
 ------------------------------------------------------------------------
 
 # Multiple Browser Instances
 
 Large automation systems often launch many browser instances
-simultaneously.
+simultaneously, each with its own proxy.
 
 A common architecture:
 
@@ -280,18 +518,22 @@ Worker 3 -> Proxy C
 
 This separation improves scalability and fault isolation.
 
-------------------------------------------------------------------------
+Node.js (`nodejs/multiple-browsers.js`) launches one browser per named
+proxy in parallel with `Promise.all`:
 
-# Multiple Browser Contexts
+``` javascript
+const proxies = [
+  { name: "Random", server: "http://resi.enigmaproxy.net:12321", username: "USERNAME", password: "PASSWORD" },
+  { name: "United States", server: "http://resi.enigmaproxy.net:12321", username: "USERNAME_country-us", password: "PASSWORD" },
+  { name: "Germany", server: "http://resi.enigmaproxy.net:12321", username: "USERNAME_country-de", password: "PASSWORD" }
+];
 
-Playwright contexts allow independent sessions inside one browser.
+await Promise.all(proxies.map(launch));
+```
 
-Use them when you need:
-
--   Separate cookies
--   Separate storage
--   Multiple users
--   Parallel automation
+Python (`python/multiple_browsers.py`) achieves the same result with
+`concurrent.futures.ThreadPoolExecutor`, since Playwright's sync API
+blocks per call.
 
 ------------------------------------------------------------------------
 
@@ -301,10 +543,53 @@ Production automation should always retry transient failures.
 
 Recommendations:
 
--   Exponential backoff
 -   Maximum retry count
 -   Timeout handling
 -   Structured logging
+-   Exponential backoff (for higher-volume workloads)
+
+Node.js (`nodejs/retry.js`)
+
+``` javascript
+const MAX_RETRIES = 3;
+
+async function browse(url) {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const browser = await chromium.launch({ headless: true, proxy });
+    try {
+      const page = await browser.newPage();
+      await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
+      await browser.close();
+      return;
+    } catch (err) {
+      await browser.close();
+      if (attempt === MAX_RETRIES) throw err;
+    }
+  }
+}
+```
+
+Python (`python/retry.py`) implements the same fixed-attempt retry loop
+using a `for attempt in range(1, MAX_RETRIES + 1)` loop.
+
+------------------------------------------------------------------------
+
+# Screenshots
+
+Capturing a full-page screenshot through a proxy, useful for visual
+QA, geo-specific rendering checks, or monitoring.
+
+Node.js (`nodejs/screenshot.js`)
+
+``` javascript
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+
+await page.goto("https://example.com", { waitUntil: "networkidle" });
+
+await page.screenshot({ path: "example.png", fullPage: true });
+```
+
+Python (`python/screenshot.py`) uses `page.screenshot(path=..., full_page=True)`.
 
 ------------------------------------------------------------------------
 
@@ -371,6 +656,17 @@ Yes.
 ### Can I use sticky sessions?
 
 Yes.
+
+### How granular can geo-targeting be?
+
+Country, state, and city, via `country-`, `state-`, and `city-`
+username suffixes. See [geo-targeting.js](nodejs/geo-targeting.js) and
+[geo_targeting.py](python/geo_targeting.py) for the full suffix list.
+
+### Can I combine sticky sessions with geo-targeting?
+
+Yes, see [sticky-geo-targeting.js](nodejs/sticky-geo-targeting.js) and
+[sticky_geo_targeting.py](python/sticky_geo_targeting.py).
 
 ------------------------------------------------------------------------
 

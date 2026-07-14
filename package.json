@@ -1,0 +1,47 @@
+{
+  "name": "playwright-proxy-examples",
+  "version": "1.0.0",
+  "description": "Complete Playwright proxy examples for Node.js with HTTP, HTTPS, SOCKS5, rotating proxies, sticky sessions, geo-targeting, proxy pools, retry logic, screenshots, and browser automation.",
+  "author": "EnigmaProxy",
+  "license": "MIT",
+  "homepage": "https://github.com/EnigmaProxy/playwright-proxy-examples",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EnigmaProxy/playwright-proxy-examples.git"
+  },
+  "keywords": [
+    "playwright",
+    "proxy",
+    "proxies",
+    "browser-automation",
+    "web-scraping",
+    "scraping",
+    "nodejs",
+    "javascript",
+    "http",
+    "https",
+    "socks5",
+    "rotating-proxy",
+    "sticky-session",
+    "automation",
+    "residential-proxy",
+    "ai",
+    "ai-agents"
+  ],
+  "scripts": {
+    "basic-http": "node nodejs/basic-http.js",
+    "https-proxy": "node nodejs/https-proxy.js",
+    "socks5-proxy": "node nodejs/socks5-proxy.js",
+    "rotating": "node nodejs/rotating.js",
+    "sticky-session": "node nodejs/sticky-session.js",
+    "sticky-geo-targeting": "node nodejs/sticky-geo-targeting.js",
+    "geo-targeting": "node nodejs/geo-targeting.js",
+    "proxy-pool": "node nodejs/proxy-pool.js",
+    "retry": "node nodejs/retry.js",
+    "multiple-browsers": "node nodejs/multiple-browsers.js",
+    "screenshot": "node nodejs/screenshot.js"
+  },
+  "dependencies": {
+    "playwright": "^1.54.0"
+  }
+}
