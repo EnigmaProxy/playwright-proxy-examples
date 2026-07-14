@@ -1,4 +1,4 @@
-# Playwright Proxy Guide
+# Playwright Proxy Examples
 
 > Production-ready Playwright proxy examples for Node.js & Python. Learn
 > HTTP, HTTPS, SOCKS5, rotating proxies, sticky sessions, proxy
